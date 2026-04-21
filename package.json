@@ -1,0 +1,60 @@
+{
+  "name": "agentblit",
+  "version": "0.1.0",
+  "description": "AgentBlit TypeScript SDK",
+  "license": "MIT",
+  "author": "Deepak",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/datablit/agentblit-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/datablit/agentblit-ts/issues"
+  },
+  "homepage": "https://github.com/datablit/agentblit-ts#readme",
+  "keywords": [
+    "agentblit",
+    "llm",
+    "agents",
+    "openai",
+    "tools",
+    "typescript"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "prepublishOnly": "npm run build",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "example": "tsx examples/basic-agent.ts"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "dependencies": {
+    "openai": "^6.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "tsup": "^8.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
