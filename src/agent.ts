@@ -121,7 +121,7 @@ export class Agent {
     const timeoutSeconds = options.timeout ?? 30;
     const timeoutMs = timeoutSeconds * 1000;
     const agentblitUrl = (options.agentblitUrl ?? "https://console.agentblit.com").replace(/\/$/, "");
-    const systemPrompt = composeSystemPrompt(options.systemPrompt ?? "");
+    const systemPrompt = composeSystemPrompt(options.systemPrompt ?? options.system_prompt ?? "");
 
     this.vendor = vendor;
     this.model = model;

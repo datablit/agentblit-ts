@@ -55,6 +55,7 @@ export interface AgentOptions {
   agentblitApiKey: string;
   agentblitUrl?: string;
   systemPrompt?: string;
+  system_prompt?: string;
   maxHistory?: number;
   debug?: boolean;
   timeout?: number;

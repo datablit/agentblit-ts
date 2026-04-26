@@ -1,43 +1,25 @@
 # AgentBlit TypeScript SDK
 
-Build LLM agents that combine AgentBlit remote tools with optional local TypeScript tools.
+Build LLM agents with:
+- AgentBlit remote tools
+- optional local TypeScript tools
+- streaming output
+- approval-gated actions
+- short-term memory with automatic summarization
 
 ## Install
-
-Published package:
 
 ```bash
 npm install agentblit
 ```
 
-Developing this repo locally:
-
-```bash
-npm install
-npm run build
-```
-
-## Example
-
-From this repo (uses `tsx` to run TypeScript directly):
-
-```bash
-export OPENAI_API_KEY="your-openai-key"
-export AGENTBLIT_API_KEY="your-agentblit-key"
-# optional: export AGENTBLIT_URL="https://console.agentblit.com"
-# optional: export MODEL="openai/gpt-4o-mini"
-npm install
-npm run example
-```
-
-Source: [`examples/basic-agent.ts`](examples/basic-agent.ts).
-
-## Usage
+## Quick Start
 
 ```ts
 import { Agent, tool } from "agentblit";
 
 const add = tool({
+  name: "local_add",
   description: "Add two integers.",
   inputSchema: {
     type: "object",
@@ -51,8 +33,9 @@ const add = tool({
 
 const agent = new Agent({
   model: "openai/gpt-4o-mini",
-  apiKey: process.env.OPENAI_API_KEY ?? "",
+  apiKey: process.env.LLM_API_KEY ?? "",
   agentblitApiKey: process.env.AGENTBLIT_API_KEY ?? "",
+  system_prompt: "You are a helpful assistant.", // systemPrompt also supported
   customTools: [add],
 });
 
@@ -62,12 +45,75 @@ for await (const chunk of agent.run("What is 200 + 30? Use tools if needed.")) {
 process.stdout.write("\n");
 ```
 
-## Feature Parity with Python SDK
+---
+
+## 1) Agent Initialization Configs
+
+`new Agent({...})` accepts:
+
+| Key | Type | Required | Default | Values / Format | Use Case |
+|---|---|---|---|---|---|
+| `model` | `string` | Yes | - | `vendor/model` (for example: `openai/gpt-4o-mini`, `anthropic/claude-sonnet-4-0`, `gemini/gemini-2.0-flash`, `openrouter/openai/gpt-4o-mini`) | Select provider + model |
+| `apiKey` | `string` | Yes | - | LLM provider API key | Send model requests |
+| `agentblitApiKey` | `string` | Yes | - | AgentBlit API key (`X-API-Key`) | Remote tools + analytics events |
+| `agentblitUrl` | `string` | No | `https://console.agentblit.com` | Valid base URL | Self-hosted or staging AgentBlit |
+| `system_prompt` | `string` | No | `""` | Any instruction text | Set assistant behavior (Python-style key) |
+| `systemPrompt` | `string` | No | `""` | Any instruction text | Backward-compatible camelCase alias |
+| `maxHistory` | `number` | No | `5` | Integer `>= 1` | Keep recent messages before summarization |
+| `maxToolRounds` | `number` | No | `25` | Integer `>= 1` | Limit LLM-tool loop iterations |
+| `debug` | `boolean` | No | `false` | `true` or `false` | Enable verbose SDK logs |
+| `timeout` | `number` (seconds) | No | `30` | Positive number | Control HTTP timeout for LLM + AgentBlit |
+| `approvalCallback` | `async (toolName, args) => boolean` | No | - | Async function | Approve/reject `needs_approval` tools |
+| `customTools` | `ToolHandler[]` | No | `[]` | Local tool functions | Register app-specific local tools |
+
+---
+
+## 2) All SDK Features
 
 - Vendor routing for `openai`, `anthropic`, `gemini`, and `openrouter`
-- AgentBlit remote tool listing/calling and local tool overrides
-- `needs_approval` gating with callback or stdin prompt
-- Streaming `agent.run()` loop with multi-round tool calling
-- Memory summarization (`maxHistory`) with summary insertion
-- Event tracking and batch flush (`agent_init`, `user_prompt`, `llm_call`, `tool_call`, `tools_updated`, `agent_loop_error`)
-- `track()` for custom events
+- Remote AgentBlit tools (`/api/tools/list`, `/api/tools/call`)
+- Local tools via `tool(...)` and `customTools` / `registerTool(...)`
+- Approval-gated tools (`needs_approval`) via callback or terminal prompt
+- Streaming responses with `for await (const chunk of agent.run(...))`
+- Multi-round tool calling in one `run()`
+- Memory summarization using `maxHistory`
+- Automatic analytics batching (`agent_init`, `user_prompt`, `llm_call`, `tool_call`, `tools_updated`, `agent_loop_error`)
+- Custom analytics via `agent.track(eventType, properties)`
+
+---
+
+## 3) Examples
+
+### Example 1: Basic Streaming Agent
+
+```ts
+const agent = new Agent({
+  model: "openai/gpt-4o-mini",
+  apiKey: process.env.LLM_API_KEY ?? "",
+  agentblitApiKey: process.env.AGENTBLIT_API_KEY ?? "",
+  system_prompt: "Be concise and accurate.",
+});
+
+for await (const chunk of agent.run("Summarize what AgentBlit does in 2 lines.")) {
+  process.stdout.write(chunk);
+}
+```
+
+### Example 2: Approval-Gated Tool
+
+```ts
+const agent = new Agent({
+  model: "openai/gpt-4o-mini",
+  apiKey: process.env.LLM_API_KEY ?? "",
+  agentblitApiKey: process.env.AGENTBLIT_API_KEY ?? "",
+  approvalCallback: async (toolName, args) => {
+    console.log("Approve tool call?", toolName, args);
+    return toolName !== "delete_production_data";
+  },
+});
+```
+
+## Repo Examples
+
+- [`examples/basic-agent.ts`](examples/basic-agent.ts) - interactive terminal chat with remote tools.
+- [`examples/custom-tools.ts`](examples/custom-tools.ts) - local TypeScript tools + AgentBlit tools.

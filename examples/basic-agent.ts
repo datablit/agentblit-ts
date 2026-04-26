@@ -13,10 +13,11 @@
  *   npx tsx examples/basic-agent.ts
  *
  * Environment:
- *   OPENAI_API_KEY     — required (OpenAI API key when using openai/… models)
+ *   LLM_API_KEY        — required (LLM provider API key for the selected model vendor)
  *   AGENTBLIT_API_KEY  — required (X-API-Key for AgentBlit)
  *   AGENTBLIT_URL      — optional (default https://console.agentblit.com)
- *   MODEL              — optional (default openai/gpt-4o-mini)
+ *   LLM_MODEL          — optional model id (default openai/gpt-4o-mini)
+ *   MODEL              — optional fallback model env var
  */
 
 import readline from "node:readline/promises";
@@ -38,11 +39,11 @@ const add = tool({
 })((a: number, b: number) => a + b);
 
 async function main(): Promise<void> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = process.env.LLM_API_KEY?.trim();
   const agentblitApiKey = process.env.AGENTBLIT_API_KEY?.trim();
 
   if (!apiKey) {
-    console.error("Set OPENAI_API_KEY to your OpenAI API key.");
+    console.error("Set LLM_API_KEY to your LLM provider API key.");
     process.exit(1);
   }
   if (!agentblitApiKey) {
@@ -50,7 +51,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const model = process.env.MODEL?.trim() || "openai/gpt-4o-mini";
+  const model = process.env.LLM_MODEL?.trim() || process.env.MODEL?.trim() || "openai/gpt-4o-mini";
   const agentblitUrl = process.env.AGENTBLIT_URL?.trim();
 
   const agent = new Agent({
