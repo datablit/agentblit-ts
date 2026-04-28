@@ -18,7 +18,8 @@ const VENDOR_BASE_URLS: Record<string, string> = {
   openrouter: "https://openrouter.ai/api/v1",
 };
 
-const DEFAULT_TOOL_USAGE_INSTRUCTION = "Use tools when they help answer accurately.";
+const DEFAULT_TOOL_USAGE_INSTRUCTION =
+  "Use tools when they help answer accurately. If long-term memory tools are available, use retrieveRelevantMemory to recall relevant context and use updateMemory to save important new information when needed.";
 
 function resolveVendorAndModel(modelInput: string): { vendor: string; model: string } {
   const model = modelInput.trim();
@@ -130,7 +131,7 @@ export class Agent {
     this.timeout = timeoutMs;
     this.approvalCallback = options.approvalCallback;
     this.maxToolRounds = maxToolRounds;
-    this.agentId = randomUUID();
+    this.agentId = options.agentId?.trim() || randomUUID();
     this.sessionId = randomUUID();
     this.eventBaseUrl = agentblitUrl;
     this.eventApiKey = agentblitApiKey;

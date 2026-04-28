@@ -57,6 +57,7 @@ process.stdout.write("\n");
 | `apiKey` | `string` | Yes | - | LLM provider API key | Send model requests |
 | `agentblitApiKey` | `string` | Yes | - | AgentBlit API key (`X-API-Key`) | Remote tools + analytics events |
 | `agentblitUrl` | `string` | No | `https://console.agentblit.com` | Valid base URL | Self-hosted or staging AgentBlit |
+| `agentId` | `string` | No | Auto-generated UUID | Any non-empty string | Reuse a stable agent identity across sessions/events |
 | `system_prompt` | `string` | No | `""` | Any instruction text | Set assistant behavior (Python-style key) |
 | `systemPrompt` | `string` | No | `""` | Any instruction text | Backward-compatible camelCase alias |
 | `maxHistory` | `number` | No | `5` | Integer `>= 1` | Keep recent messages before summarization |
@@ -77,6 +78,7 @@ process.stdout.write("\n");
 - Streaming responses with `for await (const chunk of agent.run(...))`
 - Multi-round tool calling in one `run()`
 - Memory summarization using `maxHistory`
+- Default system guidance to use tools and available long-term memory tools (`retrieveRelevantMemory`, `updateMemory`) when needed
 - Automatic analytics batching (`agent_init`, `user_prompt`, `llm_call`, `tool_call`, `tools_updated`, `agent_loop_error`)
 - Custom analytics via `agent.track(eventType, properties)`
 
