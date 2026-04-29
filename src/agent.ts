@@ -19,7 +19,7 @@ const VENDOR_BASE_URLS: Record<string, string> = {
 };
 
 const DEFAULT_TOOL_USAGE_INSTRUCTION =
-  "Use tools when they help answer accurately. If long-term memory tools are available, use retrieveRelevantMemory to recall relevant context and use updateMemory to save important new information when needed.";
+  "Use tools when they help answer accurately.";
 
 function resolveVendorAndModel(modelInput: string): { vendor: string; model: string } {
   const model = modelInput.trim();
