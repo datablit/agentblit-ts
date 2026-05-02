@@ -460,4 +460,16 @@ export class Agent {
       await this.flushEvents(events);
     }
   }
+
+  /**
+   * Runs the agent to completion and returns the full assistant text (concatenated stream chunks).
+   * Same behavior as iterating {@link Agent.run}; use when you do not need incremental output.
+   */
+  async runSync(userMessage: string): Promise<string> {
+    let text = "";
+    for await (const chunk of this.run(userMessage)) {
+      text += chunk;
+    }
+    return text;
+  }
 }
