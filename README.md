@@ -45,6 +45,28 @@ for await (const chunk of agent.run("What is 200 + 30? Use tools if needed.")) {
 process.stdout.write("\n");
 ```
 
+## Multimodal Input (OpenAI Content Parts)
+
+`agent.run(...)` accepts:
+- a plain string (existing behavior), or
+- OpenAI-style content parts (`text`, `image_url`, `file`), or
+- an object with a `content` field containing either of the above.
+
+```ts
+const input = [
+  { type: "text", text: "What do you see in this image?" },
+  {
+    type: "image_url",
+    image_url: { url: "https://example.com/sample.png", detail: "auto" },
+  },
+];
+
+for await (const chunk of agent.run(input)) {
+  // Output stream stays text chunks.
+  process.stdout.write(chunk);
+}
+```
+
 ---
 
 ## 1) Agent Initialization Configs
@@ -75,7 +97,8 @@ process.stdout.write("\n");
 - Remote AgentBlit tools (`/api/tools/list`, `/api/tools/call`)
 - Local tools via `tool(...)` and `customTools` / `registerTool(...)`
 - Approval-gated tools (`needs_approval`) via callback or terminal prompt
-- Streaming responses with `for await (const chunk of agent.run(...))`
+- OpenAI-native multimodal inputs (`text`, `image_url`, `file`)
+- Streaming text responses with `for await (const chunk of agent.run(...))`
 - Multi-round tool calling in one `run()`
 - Memory summarization using `maxHistory`
 - Default system guidance to use tools and available long-term memory tools (`retrieveRelevantMemory`, `updateMemory`) when needed
@@ -119,3 +142,4 @@ const agent = new Agent({
 
 - [`examples/basic-agent.ts`](examples/basic-agent.ts) - interactive terminal chat with remote tools.
 - [`examples/custom-tools.ts`](examples/custom-tools.ts) - local TypeScript tools + AgentBlit tools.
+- [`examples/multimodal-input.ts`](examples/multimodal-input.ts) - OpenAI-style multimodal input with text stream output.

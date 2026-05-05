@@ -33,12 +33,48 @@ export type ApprovalCallback = (
 
 export type SummarizeFn = (messages: ChatMessage[]) => Promise<string>;
 
+export interface OpenAITextContentPart {
+  type: "text";
+  text: string;
+}
+
+export interface OpenAIImageUrlContentPart {
+  type: "image_url";
+  image_url: {
+    url: string;
+    detail?: "auto" | "low" | "high" | string;
+  };
+}
+
+export interface OpenAIFileContentPart {
+  type: "file";
+  file: {
+    file_id?: string;
+    file_data?: string;
+    filename?: string;
+  };
+}
+
+export type OpenAIInputContentPart =
+  | OpenAITextContentPart
+  | OpenAIImageUrlContentPart
+  | OpenAIFileContentPart;
+
+export type ChatMessageContent = string | OpenAIInputContentPart[] | null;
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content?: string | null;
+  content?: ChatMessageContent;
   tool_call_id?: string;
   tool_calls?: OpenAIToolCall[];
 }
+
+export type AgentRunInput =
+  | string
+  | OpenAIInputContentPart[]
+  | {
+      content: string | OpenAIInputContentPart[];
+    };
 
 export interface OpenAIToolCall {
   id: string;

@@ -3,10 +3,16 @@ export { ChatMemory } from "./memory.js";
 export { tool, ToolRegistry } from "./tools.js";
 export type {
   AgentConfig,
+  AgentRunInput,
   AgentOptions,
   ApprovalCallback,
   ChatMessage,
+  ChatMessageContent,
   JSONSchema,
+  OpenAIFileContentPart,
+  OpenAIImageUrlContentPart,
+  OpenAIInputContentPart,
+  OpenAITextContentPart,
   OpenAIToolCall,
   SummarizeFn,
   ToolDefinition,

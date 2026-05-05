@@ -2,9 +2,12 @@ import OpenAI from "openai";
 import { randomUUID } from "node:crypto";
 import { ChatMemory } from "./memory.js";
 import {
+  AgentRunInput,
   AgentConfig,
   AgentOptions,
   ChatMessage,
+  ChatMessageContent,
+  OpenAIInputContentPart,
   OpenAIToolCall,
   ToolHandler,
 } from "./types.js";
@@ -65,9 +68,92 @@ function formatMessagesForSummary(messages: ChatMessage[]): string {
       if (message.role === "assistant" && message.tool_calls) {
         return `[${index}] assistant (tool_calls): ${jsonDumpsSafe(message.tool_calls)}`;
       }
-      return `[${index}] ${message.role}: ${message.content ?? ""}`;
+      return `[${index}] ${message.role}: ${serializeContentForSummary(message.content)}`;
     })
     .join("\n");
+}
+
+function serializeContentForSummary(content: ChatMessageContent | undefined): string {
+  if (content === null || content === undefined) {
+    return "";
+  }
+  if (typeof content === "string") {
+    return content;
+  }
+  const parts: string[] = [];
+  for (const part of content) {
+    if (part.type === "text") {
+      parts.push(part.text);
+      continue;
+    }
+    if (part.type === "image_url") {
+      parts.push(`[image: ${part.image_url.url}]`);
+      continue;
+    }
+    if (part.type === "file") {
+      parts.push(`[file: ${part.file.file_id ?? part.file.filename ?? "inline_data"}]`);
+      continue;
+    }
+    parts.push("[unsupported_content_part]");
+  }
+  return parts.join(" ").trim();
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function validateInputContentParts(parts: OpenAIInputContentPart[]): OpenAIInputContentPart[] {
+  for (const part of parts) {
+    if (part.type === "text") {
+      if (typeof part.text !== "string") {
+        throw new Error("Text content part must include a string 'text' field.");
+      }
+      continue;
+    }
+    if (part.type === "image_url") {
+      if (!part.image_url || typeof part.image_url.url !== "string") {
+        throw new Error(
+          "Image content part must include image_url.url as a string.",
+        );
+      }
+      continue;
+    }
+    if (part.type === "file") {
+      const file = part.file;
+      if (!file || (!file.file_id && !file.file_data)) {
+        throw new Error(
+          "File content part must include at least one of file.file_id or file.file_data.",
+        );
+      }
+      continue;
+    }
+    throw new Error(
+      "Unsupported content part type. Supported types: text, image_url, file.",
+    );
+  }
+  return parts;
+}
+
+function normalizeRunInput(userInput: AgentRunInput): ChatMessageContent {
+  if (typeof userInput === "string") {
+    return userInput;
+  }
+  if (Array.isArray(userInput)) {
+    return validateInputContentParts(userInput);
+  }
+  if (isObject(userInput)) {
+    const { content } = userInput;
+    if (typeof content === "string") {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      return validateInputContentParts(content as OpenAIInputContentPart[]);
+    }
+  }
+  throw new Error(
+    "run input must be a string, an array of OpenAI content parts, or an object with a content field.",
+  );
 }
 
 interface EventPayload {
@@ -266,11 +352,12 @@ export class Agent {
     return response.choices[0]?.message?.content?.trim() ?? "";
   }
 
-  async *run(userMessage: string): AsyncGenerator<string> {
+  async *run(userInput: AgentRunInput): AsyncGenerator<string> {
     const events: EventPayload[] = [...this.pendingCustomEvents];
     this.pendingCustomEvents.length = 0;
     try {
-      this.memory.append({ role: "user", content: userMessage });
+      const userContent = normalizeRunInput(userInput);
+      this.memory.append({ role: "user", content: userContent });
       await this.tools.refreshRemote();
       const openaiTools = this.tools.toOpenAITools();
       const toolsSignature = jsonDumpsSafe(openaiTools);
@@ -290,7 +377,7 @@ export class Agent {
       events.push(
         this.makeEvent({
           eventType: "user_prompt",
-          data: { request: { message: userMessage }, response: null },
+          data: { request: { message: userContent }, response: null },
         }),
       );
 
@@ -465,9 +552,9 @@ export class Agent {
    * Runs the agent to completion and returns the full assistant text (concatenated stream chunks).
    * Same behavior as iterating {@link Agent.run}; use when you do not need incremental output.
    */
-  async runSync(userMessage: string): Promise<string> {
+  async runSync(userInput: AgentRunInput): Promise<string> {
     let text = "";
-    for await (const chunk of this.run(userMessage)) {
+    for await (const chunk of this.run(userInput)) {
       text += chunk;
     }
     return text;
