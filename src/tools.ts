@@ -14,7 +14,6 @@ import {
 } from "./utils.js";
 
 interface ToolsListResponse {
-  ok: boolean;
   tools?: Array<Record<string, unknown>>;
 }
 
@@ -56,7 +55,7 @@ export class ToolRegistry {
   }
 
   async refreshRemote(): Promise<void> {
-    const url = `${this.baseUrl}/api/tools/list`;
+    const url = `${this.baseUrl}/api/1.0/tools/list`;
     const response = await fetch(url, {
       method: "GET",
       headers: { "X-API-Key": this.apiKey },
@@ -69,28 +68,29 @@ export class ToolRegistry {
     }
 
     const data = (await response.json()) as ToolsListResponse;
-    if (!data.ok) {
-      throw new Error("tools/list returned ok=false");
-    }
 
     this.remote.clear();
     for (const toolItem of data.tools ?? []) {
-      const name = String(toolItem.name ?? "");
+      const type = String(toolItem.type ?? "");
+      if (type !== "function") {
+        continue;
+      }
+      const fn = (toolItem.function as Record<string, unknown> | undefined) ?? {};
+      const name = String(fn.name ?? "");
       if (!name) {
         continue;
       }
       this.remote.set(name, {
         name,
-        description: String(toolItem.description ?? ""),
-        inputSchema: (toolItem.inputSchema as Record<string, unknown>) ?? {
+        description: String(fn.description ?? ""),
+        inputSchema: (fn.parameters as Record<string, unknown>) ?? {
           type: "object",
           properties: {},
         },
         permissionMode:
-          String(toolItem.permissionMode ?? "always_allow") === "needs_approval"
+          String(toolItem.permission_mode ?? "always_allow") === "needs_approval"
             ? "needs_approval"
             : "always_allow",
-        outputSchema: toolItem.outputSchema as Record<string, unknown> | undefined,
       });
     }
   }
@@ -183,7 +183,10 @@ export class ToolRegistry {
         },
       ] satisfies OpenAIToolCall[],
     };
-    const url = `${this.baseUrl}/api/tools/call`;
+    if (!toolCallId.trim()) {
+      return jsonDumpsSafe({ error: "Missing tool_call_id" });
+    }
+    const url = `${this.baseUrl}/api/1.0/tools/call`;
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -199,35 +202,22 @@ export class ToolRegistry {
       );
     }
     const data = (await response.json()) as {
-      ok?: boolean;
       results?: Array<{
         tool_call_id?: string;
-        result?: {
-          isError?: boolean;
-          content?: Array<{ text?: string }>;
-          structuredContent?: unknown;
-        };
+        result?: unknown;
+        error?: unknown;
       }>;
     };
-    if (!data.ok) {
-      return jsonDumpsSafe({ error: data });
-    }
     const result = (data.results ?? []).find((item) => item.tool_call_id === toolCallId);
     if (!result) {
       return jsonDumpsSafe({ error: "No result for tool_call_id" });
     }
-    const toolResult = result.result;
-    if (!toolResult) {
-      return jsonDumpsSafe({ error: "Missing tool result payload" });
+    if (typeof result.error !== "undefined") {
+      return jsonDumpsSafe({ error: result.error });
     }
-    if (toolResult.isError) {
-      const text = (toolResult.content ?? []).map((part) => part.text ?? "").join("");
-      return jsonDumpsSafe({ error: text || "Tool error" });
+    if (typeof result.result !== "undefined") {
+      return jsonDumpsSafe(result.result);
     }
-    if (typeof toolResult.structuredContent !== "undefined") {
-      return jsonDumpsSafe(toolResult.structuredContent);
-    }
-    const text = (toolResult.content ?? []).map((part) => part.text ?? "").join("");
-    return jsonDumpsSafe({ result: text });
+    return jsonDumpsSafe({ error: "Missing result or error for tool_call_id" });
   }
 }

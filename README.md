@@ -94,7 +94,7 @@ for await (const chunk of agent.run(input)) {
 ## 2) All SDK Features
 
 - Vendor routing for `openai`, `anthropic`, `gemini`, and `openrouter`
-- Remote AgentBlit tools (`/api/tools/list`, `/api/tools/call`)
+- Remote AgentBlit tools (`/api/1.0/tools/list`, `/api/1.0/tools/call`)
 - Local tools via `tool(...)` and `customTools` / `registerTool(...)`
 - Approval-gated tools (`needs_approval`) via callback or terminal prompt
 - OpenAI-native multimodal inputs (`text`, `image_url`, `file`)
