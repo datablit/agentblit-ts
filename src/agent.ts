@@ -334,6 +334,25 @@ export class Agent {
     return [summaryMessage, lastMessage];
   }
 
+  private async buildAgentLoopErrorData(error: unknown): Promise<Record<string, unknown>> {
+    const data: Record<string, unknown> = {
+      error: error instanceof Error ? error : String(error),
+    };
+    try {
+      data.messages = await this.memory.buildMessagesForLLM(this.systemPrompt);
+    } catch (memoryError) {
+      data.messages = this.memory.messages;
+      data.messages_build_error = String(memoryError);
+    }
+    try {
+      data.tools = this.tools.toOpenAITools();
+    } catch (toolsError) {
+      data.tools = [];
+      data.tools_error = String(toolsError);
+    }
+    return data;
+  }
+
   private async summarizeOlderMessages(older: ChatMessage[]): Promise<string> {
     const text = formatMessagesForSummary(older);
     this.debug.log("Summarizing %s older messages", older.length);
@@ -538,7 +557,7 @@ export class Agent {
       events.push(
         this.makeEvent({
           eventType: "agent_loop_error",
-          data: { error: error instanceof Error ? error.message : String(error) },
+          data: await this.buildAgentLoopErrorData(error),
         }),
       );
       throw error;
