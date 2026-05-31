@@ -13,6 +13,14 @@ export interface ToolDefinition {
   handler?: ToolHandler;
 }
 
+export interface AgentBlitAgentConfig {
+  id: string;
+  name: string;
+  model: string;
+  system_prompt: string;
+  tools: Array<Record<string, unknown>>;
+}
+
 export interface AgentConfig {
   model: string;
   vendor: string;
@@ -86,13 +94,9 @@ export interface OpenAIToolCall {
 }
 
 export interface AgentOptions {
-  model: string;
   apiKey: string;
   agentblitApiKey: string;
   agentblitUrl?: string;
-  agentId?: string;
-  systemPrompt?: string;
-  system_prompt?: string;
   maxHistory?: number;
   debug?: boolean;
   timeout?: number;

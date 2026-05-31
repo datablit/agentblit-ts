@@ -30,11 +30,9 @@ async function main(): Promise<void> {
   const agentblitKey = requireEnv("AGENTBLIT_API_KEY");
 
   const agent = new Agent({
-    model: process.env.LLM_MODEL?.trim() || process.env.MODEL?.trim() || "openai/gpt-4o-mini",
     apiKey: llmKey,
     agentblitUrl: process.env.AGENTBLIT_URL?.trim() || "https://console.agentblit.com",
     agentblitApiKey: agentblitKey,
-    system_prompt: "You are concise.",
     maxHistory: 5,
     debug: true,
     customTools: [greet, doubleValue],

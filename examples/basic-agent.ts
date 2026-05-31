@@ -16,8 +16,6 @@
  *   LLM_API_KEY        — required (LLM provider API key for the selected model vendor)
  *   AGENTBLIT_API_KEY  — required (X-API-Key for AgentBlit)
  *   AGENTBLIT_URL      — optional (default https://console.agentblit.com)
- *   LLM_MODEL          — optional model id (default openai/gpt-4o-mini)
- *   MODEL              — optional fallback model env var
  */
 
 import readline from "node:readline/promises";
@@ -51,22 +49,15 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const model = process.env.LLM_MODEL?.trim() || process.env.MODEL?.trim() || "openai/gpt-4o-mini";
-  const agentblitUrl = process.env.AGENTBLIT_URL?.trim();
-
   const agent = new Agent({
-    model,
     apiKey,
     agentblitApiKey,
-    ...(agentblitUrl ? { agentblitUrl } : {}),
-    systemPrompt: "You are a helpful assistant.",
     maxHistory: 5,
     debug: process.env.DEBUG === "1" || process.env.DEBUG === "true",
     timeout: Number(process.env.TIMEOUT_SECONDS ?? "30") || 30,
     customTools: [add],
   });
 
-  console.log("agent_id:", agent.agentId);
   console.log("session_id:", agent.sessionId);
   console.log("Type a message and press Enter. Commands: exit, quit. Ctrl+D to leave.");
   console.log("---");
@@ -74,7 +65,7 @@ async function main(): Promise<void> {
   const rl = readline.createInterface({ input, output });
 
   try {
-    for (;;) {
+    for (; ;) {
       let line: string;
       try {
         line = await rl.question("\nYou: ");

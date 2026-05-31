@@ -1,5 +1,6 @@
 import {
   ApprovalCallback,
+  AgentBlitAgentConfig,
   OpenAIToolCall,
   ToolDefinition,
   ToolHandler,
@@ -12,10 +13,6 @@ import {
   readStdinLine,
   setToolMetadata,
 } from "./utils.js";
-
-interface ToolsListResponse {
-  tools?: Array<Record<string, unknown>>;
-}
 
 export function tool(options: ToolOptions): <T extends ToolHandler>(fn: T) => T;
 export function tool<T extends ToolHandler>(fn: T, options?: ToolOptions): T;
@@ -54,23 +51,9 @@ export class ToolRegistry {
     });
   }
 
-  async refreshRemote(): Promise<void> {
-    const url = `${this.baseUrl}/api/1.0/tools/list`;
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { "X-API-Key": this.apiKey },
-      signal: AbortSignal.timeout(this.timeout),
-    });
-    if (!response.ok) {
-      throw new Error(
-        `AgentBlit request failed for GET '${url}': ${response.status} ${response.statusText}`,
-      );
-    }
-
-    const data = (await response.json()) as ToolsListResponse;
-
+  private applyRemoteTools(tools: Array<Record<string, unknown>>): void {
     this.remote.clear();
-    for (const toolItem of data.tools ?? []) {
+    for (const toolItem of tools) {
       const type = String(toolItem.type ?? "");
       if (type !== "function") {
         continue;
@@ -93,6 +76,24 @@ export class ToolRegistry {
             : "always_allow",
       });
     }
+  }
+
+  async refreshRemote(): Promise<AgentBlitAgentConfig> {
+    const url = `${this.baseUrl}/api/1.0/agent`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "X-API-Key": this.apiKey },
+      signal: AbortSignal.timeout(this.timeout),
+    });
+    if (!response.ok) {
+      throw new Error(
+        `AgentBlit request failed for GET '${url}': ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as AgentBlitAgentConfig;
+    this.applyRemoteTools(data.tools);
+    return data;
   }
 
   private merged(): Map<string, ToolDefinition> {

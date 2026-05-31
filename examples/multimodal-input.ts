@@ -15,10 +15,8 @@ async function main(): Promise<void> {
   const imageUrl = requireEnv("AGENTBLIT_IMAGE_URL");
 
   const agent = new Agent({
-    model: process.env.LLM_MODEL?.trim() || "openai/gpt-4o-mini",
     apiKey: llmKey,
     agentblitApiKey: agentblitKey,
-    systemPrompt: "You are concise.",
   });
 
   const userInput = [

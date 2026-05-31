@@ -51,17 +51,6 @@ function resolveLlmUrl(vendor: string): string {
   return url;
 }
 
-function composeSystemPrompt(systemPrompt: string): string {
-  const userPrompt = systemPrompt.trim();
-  if (userPrompt.toLowerCase().includes(DEFAULT_TOOL_USAGE_INSTRUCTION.toLowerCase())) {
-    return userPrompt;
-  }
-  if (!userPrompt) {
-    return DEFAULT_TOOL_USAGE_INSTRUCTION;
-  }
-  return `${userPrompt}\n\n${DEFAULT_TOOL_USAGE_INSTRUCTION}`;
-}
-
 function formatMessagesForSummary(messages: ChatMessage[]): string {
   return messages
     .map((message, index) => {
@@ -168,17 +157,17 @@ interface EventPayload {
 }
 
 export class Agent {
-  readonly vendor: string;
-  readonly model: string;
-  readonly llmUrl: string;
-  readonly agentId: string;
+  vendor = "";
+  model = "";
+  llmUrl = "";
+  agentId = "";
   readonly sessionId: string;
-  readonly config: AgentConfig;
+  config: AgentConfig | null = null;
   readonly memory: ChatMemory;
 
-  private readonly client: OpenAI;
+  private client!: OpenAI;
   private readonly tools: ToolRegistry;
-  private readonly systemPrompt: string;
+  private systemPrompt = "";
   private readonly timeout: number;
   private readonly debug: DebugLogger;
   private readonly approvalCallback?: AgentOptions["approvalCallback"];
@@ -188,6 +177,11 @@ export class Agent {
   private readonly pendingCustomEvents: EventPayload[] = [];
   private agentInitSent = false;
   private toolsSignature?: string;
+  private initialized = false;
+
+  private readonly llmApiKey: string;
+  private readonly debugEnabled: boolean;
+  private readonly maxHistory: number;
 
   constructor(options: AgentOptions) {
     const agentblitApiKey = options.agentblitApiKey.trim();
@@ -203,31 +197,21 @@ export class Agent {
       throw new Error("maxToolRounds must be at least 1");
     }
 
-    const { vendor, model } = resolveVendorAndModel(options.model);
-    const llmUrl = resolveLlmUrl(vendor);
     const timeoutSeconds = options.timeout ?? 30;
     const timeoutMs = timeoutSeconds * 1000;
     const agentblitUrl = (options.agentblitUrl ?? "https://console.agentblit.com").replace(/\/$/, "");
-    const systemPrompt = composeSystemPrompt(options.systemPrompt ?? options.system_prompt ?? "");
 
-    this.vendor = vendor;
-    this.model = model;
-    this.llmUrl = llmUrl;
-    this.systemPrompt = systemPrompt;
+    this.llmApiKey = options.apiKey;
+    this.maxHistory = maxHistory;
+    this.debugEnabled = Boolean(options.debug);
     this.timeout = timeoutMs;
     this.approvalCallback = options.approvalCallback;
     this.maxToolRounds = maxToolRounds;
-    this.agentId = options.agentId?.trim() || randomUUID();
     this.sessionId = randomUUID();
     this.eventBaseUrl = agentblitUrl;
     this.eventApiKey = agentblitApiKey;
-    this.debug = new DebugLogger(Boolean(options.debug));
+    this.debug = new DebugLogger(this.debugEnabled);
 
-    this.client = new OpenAI({
-      apiKey: options.apiKey,
-      baseURL: llmUrl,
-      timeout: timeoutMs,
-    });
     this.tools = new ToolRegistry({
       baseUrl: agentblitUrl,
       apiKey: agentblitApiKey,
@@ -240,18 +224,48 @@ export class Agent {
       maxHistory,
       summarizeFn: (older) => this.summarizeOlderMessages(older),
     });
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    const remote = await this.tools.refreshRemote();
+    if (this.initialized) {
+      return;
+    }
+    if (!remote.model.trim()) {
+      throw new Error(
+        "AgentBlit agent response is missing model; configure a model for this agent in AgentBlit.",
+      );
+    }
+    this.agentId = remote.id.trim();
+    if (!this.agentId) {
+      throw new Error(
+        "AgentBlit agent response is missing id; check your AgentBlit API key and agent configuration.",
+      );
+    }
+    const { vendor, model } = resolveVendorAndModel(remote.model);
+    const llmUrl = resolveLlmUrl(vendor);
+    this.vendor = vendor;
+    this.model = model;
+    this.llmUrl = llmUrl;
+    this.systemPrompt = remote.system_prompt.trim() || DEFAULT_TOOL_USAGE_INSTRUCTION;
+    this.client = new OpenAI({
+      apiKey: this.llmApiKey,
+      baseURL: llmUrl,
+      timeout: this.timeout,
+    });
     this.config = Object.freeze({
       model: this.model,
       vendor: this.vendor,
       llmUrl: this.llmUrl,
       agentblitUrl: this.eventBaseUrl,
       systemPrompt: this.systemPrompt,
-      maxHistory,
-      debug: Boolean(options.debug),
-      timeout: timeoutSeconds,
+      maxHistory: this.maxHistory,
+      debug: this.debugEnabled,
+      timeout: this.timeout / 1000,
       agentId: this.agentId,
       sessionId: this.sessionId,
     });
+    this.initialized = true;
   }
 
   registerTool(fn: ToolHandler): void {
@@ -377,7 +391,7 @@ export class Agent {
     try {
       const userContent = normalizeRunInput(userInput);
       this.memory.append({ role: "user", content: userContent });
-      await this.tools.refreshRemote();
+      await this.ensureInitialized();
       const openaiTools = this.tools.toOpenAITools();
       const toolsSignature = jsonDumpsSafe(openaiTools);
       if (!this.agentInitSent) {

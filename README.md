@@ -32,10 +32,8 @@ const add = tool({
 })((a: number, b: number) => a + b);
 
 const agent = new Agent({
-  model: "openai/gpt-4o-mini",
   apiKey: process.env.LLM_API_KEY ?? "",
   agentblitApiKey: process.env.AGENTBLIT_API_KEY ?? "",
-  system_prompt: "You are a helpful assistant.", // systemPrompt also supported
   customTools: [add],
 });
 
@@ -75,13 +73,9 @@ for await (const chunk of agent.run(input)) {
 
 | Key | Type | Required | Default | Values / Format | Use Case |
 |---|---|---|---|---|---|
-| `model` | `string` | Yes | - | `vendor/model` (for example: `openai/gpt-4o-mini`, `anthropic/claude-sonnet-4-0`, `gemini/gemini-2.0-flash`, `openrouter/openai/gpt-4o-mini`) | Select provider + model |
 | `apiKey` | `string` | Yes | - | LLM provider API key | Send model requests |
-| `agentblitApiKey` | `string` | Yes | - | AgentBlit API key (`X-API-Key`) | Remote tools + analytics events |
+| `agentblitApiKey` | `string` | Yes | - | AgentBlit API key (`X-API-Key`) | Load agent config + remote tools + analytics events |
 | `agentblitUrl` | `string` | No | `https://console.agentblit.com` | Valid base URL | Self-hosted or staging AgentBlit |
-| `agentId` | `string` | No | Auto-generated UUID | Any non-empty string | Reuse a stable agent identity across sessions/events |
-| `system_prompt` | `string` | No | `""` | Any instruction text | Set assistant behavior (Python-style key) |
-| `systemPrompt` | `string` | No | `""` | Any instruction text | Backward-compatible camelCase alias |
 | `maxHistory` | `number` | No | `5` | Integer `>= 1` | Keep recent messages before summarization |
 | `maxToolRounds` | `number` | No | `25` | Integer `>= 1` | Limit LLM-tool loop iterations |
 | `debug` | `boolean` | No | `false` | `true` or `false` | Enable verbose SDK logs |
@@ -94,7 +88,7 @@ for await (const chunk of agent.run(input)) {
 ## 2) All SDK Features
 
 - Vendor routing for `openai`, `anthropic`, `gemini`, and `openrouter`
-- Remote AgentBlit tools (`/api/1.0/tools/list`, `/api/1.0/tools/call`)
+- Remote AgentBlit agent config and tools (`GET /api/1.0/agent`, `POST /api/1.0/tools/call`)
 - Local tools via `tool(...)` and `customTools` / `registerTool(...)`
 - Approval-gated tools (`needs_approval`) via callback or terminal prompt
 - OpenAI-native multimodal inputs (`text`, `image_url`, `file`)
@@ -113,10 +107,8 @@ for await (const chunk of agent.run(input)) {
 
 ```ts
 const agent = new Agent({
-  model: "openai/gpt-4o-mini",
   apiKey: process.env.LLM_API_KEY ?? "",
   agentblitApiKey: process.env.AGENTBLIT_API_KEY ?? "",
-  system_prompt: "Be concise and accurate.",
 });
 
 for await (const chunk of agent.run("Summarize what AgentBlit does in 2 lines.")) {
@@ -124,11 +116,12 @@ for await (const chunk of agent.run("Summarize what AgentBlit does in 2 lines.")
 }
 ```
 
+Model, system prompt, agent id, and remote tools are loaded from AgentBlit on the first `run()`.
+
 ### Example 2: Approval-Gated Tool
 
 ```ts
 const agent = new Agent({
-  model: "openai/gpt-4o-mini",
   apiKey: process.env.LLM_API_KEY ?? "",
   agentblitApiKey: process.env.AGENTBLIT_API_KEY ?? "",
   approvalCallback: async (toolName, args) => {
