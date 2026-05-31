@@ -97,6 +97,8 @@ export interface AgentOptions {
   apiKey: string;
   agentblitApiKey: string;
   agentblitUrl?: string;
+  /** When set, overrides the model from `GET /api/1.0/agent`. */
+  model?: string;
   maxHistory?: number;
   debug?: boolean;
   timeout?: number;

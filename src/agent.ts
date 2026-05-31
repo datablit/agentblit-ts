@@ -180,6 +180,7 @@ export class Agent {
   private initialized = false;
 
   private readonly llmApiKey: string;
+  private readonly modelOverride?: string;
   private readonly debugEnabled: boolean;
   private readonly maxHistory: number;
 
@@ -202,6 +203,8 @@ export class Agent {
     const agentblitUrl = (options.agentblitUrl ?? "https://console.agentblit.com").replace(/\/$/, "");
 
     this.llmApiKey = options.apiKey;
+    const modelOverride = options.model?.trim();
+    this.modelOverride = modelOverride || undefined;
     this.maxHistory = maxHistory;
     this.debugEnabled = Boolean(options.debug);
     this.timeout = timeoutMs;
@@ -231,9 +234,10 @@ export class Agent {
     if (this.initialized) {
       return;
     }
-    if (!remote.model.trim()) {
+    const modelInput = this.modelOverride ?? remote.model;
+    if (!modelInput.trim()) {
       throw new Error(
-        "AgentBlit agent response is missing model; configure a model for this agent in AgentBlit.",
+        "No model configured; set model in AgentBlit or pass model in AgentOptions.",
       );
     }
     this.agentId = remote.id.trim();
@@ -242,7 +246,7 @@ export class Agent {
         "AgentBlit agent response is missing id; check your AgentBlit API key and agent configuration.",
       );
     }
-    const { vendor, model } = resolveVendorAndModel(remote.model);
+    const { vendor, model } = resolveVendorAndModel(modelInput);
     const llmUrl = resolveLlmUrl(vendor);
     this.vendor = vendor;
     this.model = model;
